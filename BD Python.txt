@@ -1,0 +1,72 @@
+pip install sqlalchemy mysql-connector-python
+
+ SQLAlchemy com FastAPI 
+
+from fastapi import FastAPI, HTTPException
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, relationship
+from datetime import datetime
+
+# Configurações de conexão ao banco de dados MySQL
+SQLALCHEMY_DATABASE_URL = "mysql+mysqlconnector://seu_usuario:senha@localhost:porta/nome_do_banco_de_dados"
+
+# Cria uma instância da engine do SQLAlchemy
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
+# Cria a base declarativa do SQLAlchemy
+Base = declarative_base()
+
+# Define os modelos de dados para as tabelas do esquema do banco de dados
+class Condominio(Base):
+    __tablename__ = "condominio"
+
+    ID = Column(Integer, primary_key=True)
+    cnpj = Column(Integer, unique=True, nullable=False)
+    quant_torres = Column(Integer)
+    quant_andares = Column(Integer)
+    nome_condominio = Column(String(255), nullable=False)
+    tipo = Column(String(45), nullable=False)
+    data_entrada = Column(DateTime, default=datetime.now, nullable=False)
+
+class Localizacao(Base):
+    __tablename__ = "localizacao"
+
+    ID = Column(Integer, primary_key=True)
+    condominio_ID = Column(Integer, ForeignKey("condominio.ID"), nullable=False)
+    uf = Column(String(45), nullable=False)
+    cidade = Column(String(45), nullable=False)
+    bairro = Column(String(45), nullable=False)
+    logradouro = Column(String(45), nullable=False)
+    numero = Column(String(45), nullable=False)
+
+    condominio = relationship("Condominio", back_populates="localizacao")
+
+    # Aqui você pode definir outros relacionamentos e tabelas de acordo com seu esquema de banco de dados
+
+# Outros modelos e relações podem ser adicionados conforme necessário
+
+# Cria as tabelas no banco de dados
+Base.metadata.create_all(bind=engine)
+
+# Cria a sessão do banco de dados
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base.metadata.create_all(bind=engine)
+
+# Inicializa o aplicativo FastAPI
+app = FastAPI()
+
+# Definições das rotas e operações CRUD com FastAPI
+# Exemplo: rota para recuperar todos os condomínios
+@app.get("/condominios/", response_model=list[Condominio])
+def get_condominios(skip: int = 0, limit: int = 10):
+    db = SessionLocal()
+    condominios = db.query(Condominio).offset(skip).limit(limit).all()
+    return condominios
+
+# Aqui você pode adicionar rotas para criar, atualizar e excluir condomínios, localizações e outras entidades do seu banco de dados MySQL
+
+# Executa o aplicativo com o servidor FastAPI
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)
